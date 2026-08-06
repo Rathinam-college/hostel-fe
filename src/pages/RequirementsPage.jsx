@@ -18,8 +18,8 @@ export default function RequirementsPage({ institutes, sharingTypes }) {
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Institutional Requirements Forecast</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Compare demand forecast requirements against available vacant beds (`vw_requirement_gap`)</p>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Demand Forecast</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Institute bed requirements & gap forecast.</p>
         </div>
       </div>
 

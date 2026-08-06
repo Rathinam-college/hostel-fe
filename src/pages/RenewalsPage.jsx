@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
-export default function RenewalsPage() {
+export default function RenewalsPage({ onPromoteYear }) {
   const [renewals, setRenewals] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [promoteData, setPromoteData] = useState({
+    institute_id: 'all',
+    current_year: 'all',
+    increment_by: 1,
+    max_year: 4,
+    max_year_action: 'graduate'
+  });
 
   useEffect(() => {
     fetchRenewals();
@@ -35,21 +43,36 @@ export default function RenewalsPage() {
       });
   };
 
+  const handlePromoteSubmit = (e) => {
+    e.preventDefault();
+    if (onPromoteYear) {
+      onPromoteYear(promoteData, () => {
+        setShowPromoteModal(false);
+        fetchRenewals();
+      });
+    }
+  };
+
   return (
     <div className="fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Academic Contract Renewals</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Manage annual contract renewal status (TBR, R, RR, V, WV, YTC)</p>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Renewals Board</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Contract renewal status & year progression.</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={fetchRenewals}>
-          🔄 Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn btn-secondary" onClick={() => setShowPromoteModal(true)} style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>
+            🎓 Promote All Students Year (+1 Yr)
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={fetchRenewals}>
+            🔄 Refresh
+          </button>
+        </div>
       </div>
 
       <div className="table-container">
         <div className="table-header">
-          <h3>Academic Year 2026-27 Contracts</h3>
+          <h3>Academic Year Contracts</h3>
         </div>
         <table>
           <thead>
@@ -114,6 +137,59 @@ export default function RenewalsPage() {
           </tbody>
         </table>
       </div>
+
+      {showPromoteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">🎓 Auto Batch Promote Academic Year</h3>
+              <button className="close-btn" onClick={() => setShowPromoteModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handlePromoteSubmit}>
+              <div style={{ background: 'rgba(245, 158, 11, 0.1)', borderLeft: '4px solid #f59e0b', padding: '12px 16px', borderRadius: '4px', marginBottom: '16px', fontSize: '0.85rem' }}>
+                <strong>Pass Academic Year:</strong>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)' }}>
+                  Automatically promotes all student residents from 1st Year to 2nd Year, 2nd Year to 3rd Year, etc. for the upcoming academic year.
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Increment Amount</label>
+                <select
+                  className="form-select"
+                  value={promoteData.increment_by}
+                  onChange={(e) => setPromoteData({ ...promoteData, increment_by: parseInt(e.target.value) })}
+                >
+                  <option value={1}>+1 Year (1st → 2nd, 2nd → 3rd, 3rd → 4th Year)</option>
+                  <option value={2}>+2 Years</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">4th Year / Final Year Action</label>
+                <select
+                  className="form-select"
+                  value={promoteData.max_year_action}
+                  onChange={(e) => setPromoteData({ ...promoteData, max_year_action: e.target.value })}
+                >
+                  <option value="graduate">Mark as Graduated / 5th Year</option>
+                  <option value="cap">Cap at 4th Year</option>
+                  <option value="increment">Increment to Next Year</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPromoteModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>
+                  🚀 Confirm & Promote Students
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

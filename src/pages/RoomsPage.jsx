@@ -1,10 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onDeleteRoom, refreshRooms }) {
   const [filterHostel, setFilterHostel] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterSharingType, setFilterSharingType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [localSharingTypes, setLocalSharingTypes] = useState([]);
+
+  // Fetch live sharing types from master data if needed
+  useEffect(() => {
+    fetchSharingTypesData();
+  }, []);
+
+  const fetchSharingTypesData = () => {
+    fetch('/api/sharing-types')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 'success') {
+          setLocalSharingTypes(data.data || []);
+        }
+      })
+      .catch((err) => console.error('Error fetching sharing types in RoomsPage:', err));
+  };
+
+  const activeSharingTypes = (sharingTypes && sharingTypes.length > 0) ? sharingTypes : localSharingTypes;
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -12,10 +32,10 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
 
   // Form Data States
   const [addFormData, setAddFormData] = useState({
-    hostel_id: hostels[0]?.id || 1,
+    hostel_id: hostels && hostels[0]?.id ? hostels[0].id : 1,
     room_number: '',
     floor: '1',
-    sharing_type_id: sharingTypes[0]?.id || 1,
+    sharing_type_id: activeSharingTypes && activeSharingTypes[0]?.id ? activeSharingTypes[0].id : 1,
     capacity: 4
   });
 
@@ -28,23 +48,23 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
     capacity: 4
   });
 
-  // Auto-calculated capacity from Sharing Type
+  // Auto-calculated capacity from Sharing Type selection
   const handleAddSharingTypeChange = (stId) => {
-    const selectedSt = sharingTypes?.find((st) => st.id.toString() === stId.toString());
+    const selectedSt = activeSharingTypes?.find((st) => st.id.toString() === stId.toString());
     const autoBedCount = selectedSt?.bed_count || (selectedSt?.label?.toLowerCase().includes('2') ? 2 : selectedSt?.label?.toLowerCase().includes('3') ? 3 : 4);
     setAddFormData((prev) => ({
       ...prev,
-      sharing_type_id: stId,
+      sharing_type_id: parseInt(stId),
       capacity: autoBedCount
     }));
   };
 
   const handleEditSharingTypeChange = (stId) => {
-    const selectedSt = sharingTypes?.find((st) => st.id.toString() === stId.toString());
+    const selectedSt = activeSharingTypes?.find((st) => st.id.toString() === stId.toString());
     const autoBedCount = selectedSt?.bed_count || (selectedSt?.label?.toLowerCase().includes('2') ? 2 : selectedSt?.label?.toLowerCase().includes('3') ? 3 : 4);
     setEditFormData((prev) => ({
       ...prev,
-      sharing_type_id: stId,
+      sharing_type_id: parseInt(stId),
       capacity: autoBedCount
     }));
   };
@@ -57,7 +77,8 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
       : filterStatus === 'vacant'
       ? r.vacant > 0
       : r.vacant === 0;
-    return matchesHostel && matchesSearch && matchesStatus;
+    const matchesSharing = filterSharingType === 'all' || (r.sharing_type_id && r.sharing_type_id.toString() === filterSharingType);
+    return matchesHostel && matchesSearch && matchesStatus && matchesSharing;
   });
 
   // Create Room Handler
@@ -105,14 +126,24 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
     }
   };
 
+  // Helper function to resolve sharing type label for display
+  const getSharingTypeDisplay = (room) => {
+    if (!room) return '4 Sharing';
+    const found = activeSharingTypes?.find((st) => st.id.toString() === (room.sharing_type_id || '').toString());
+    if (found) {
+      return `${found.label} (${found.bed_count} Beds${found.is_attached ? ' • Attached' : ''})`;
+    }
+    return room.sharing_type_label || `${room.capacity || 4} Sharing`;
+  };
+
   return (
     <div className="fade-in">
       {/* Header & Add Room Button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800 }}>Rooms Infrastructure & Management (Full CRUD)</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Manage room numbers, floor levels, bed capacities, and sharing types with full Create, Edit, & Delete controls
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Rooms Directory</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Manage room numbers, capacities, and master room sharing types.
           </p>
         </div>
 
@@ -123,7 +154,7 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
 
       {/* Filter & Search Bar */}
       <div className="card" style={{ marginBottom: '24px', padding: '18px 24px' }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '220px' }}>
             <input
               type="text"
@@ -138,7 +169,7 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
             className="form-select"
             value={filterHostel}
             onChange={(e) => setFilterHostel(e.target.value)}
-            style={{ width: '200px' }}
+            style={{ width: '180px' }}
           >
             <option value="all">🏢 All Hostels</option>
             {hostels.map((h) => (
@@ -148,9 +179,21 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
 
           <select
             className="form-select"
+            value={filterSharingType}
+            onChange={(e) => setFilterSharingType(e.target.value)}
+            style={{ width: '200px' }}
+          >
+            <option value="all">🛏️ All Sharing Types</option>
+            {activeSharingTypes.map((st) => (
+              <option key={st.id} value={st.id.toString()}>{st.label}</option>
+            ))}
+          </select>
+
+          <select
+            className="form-select"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ width: '180px' }}
+            style={{ width: '170px' }}
           >
             <option value="all">All Status</option>
             <option value="vacant">🟢 Vacant Beds Available</option>
@@ -181,6 +224,8 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
             filteredRooms.map((r) => {
               const isFull = r.vacant === 0;
               const pct = r.capacity > 0 ? Math.round((r.occupied / r.capacity) * 100) : 0;
+              const sharingDisplay = getSharingTypeDisplay(r);
+
               return (
                 <div key={r.id} className="grid-card-item" style={{ borderTop: `4px solid ${isFull ? 'var(--danger)' : 'var(--success)'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -232,8 +277,8 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
 
                   {/* ROOM LEVEL CRUD CONTROLS */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                    <span className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>
-                      {r.sharing_type_label || `${r.capacity} Sharing`}
+                    <span className="badge badge-indigo" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      🛏️ {sharingDisplay}
                     </span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => handleOpenEditModal(r)}>
@@ -248,7 +293,7 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
               );
             })
           ) : (
-            <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '32px' }}>
+            <div style={{ textAlign: 'center', padding: '40px', gridColumn: '1 / -1', color: 'var(--text-muted)' }}>
               No rooms match your filter criteria.
             </div>
           )}
@@ -281,7 +326,11 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
                     <td>{r.hostel_name}</td>
                     <td>Floor {r.floor || '1'}</td>
                     <td><span style={{ fontWeight: 800, color: 'var(--primary)' }}>Room {r.room_number}</span></td>
-                    <td><span className="badge badge-indigo">{r.sharing_type_label || 'Default'}</span></td>
+                    <td>
+                      <span className="badge badge-indigo" style={{ fontSize: '0.78rem' }}>
+                        {getSharingTypeDisplay(r)}
+                      </span>
+                    </td>
                     <td>{r.capacity} beds</td>
                     <td style={{ color: 'var(--success)', fontWeight: 700 }}>{r.occupied}</td>
                     <td style={{ color: 'var(--warning)', fontWeight: 700 }}>{r.vacant}</td>
@@ -355,15 +404,17 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
               </div>
 
               <div className="form-group">
-                <label className="form-label">Sharing Type</label>
+                <label className="form-label">Sharing Type (Master Configuration)</label>
                 <select
                   className="form-select"
                   value={addFormData.sharing_type_id}
                   onChange={(e) => handleAddSharingTypeChange(e.target.value)}
                 >
-                  {sharingTypes && sharingTypes.length > 0 ? (
-                    sharingTypes.map((st) => (
-                      <option key={st.id} value={st.id}>{st.label}</option>
+                  {activeSharingTypes && activeSharingTypes.length > 0 ? (
+                    activeSharingTypes.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.label} ({st.bed_count} Beds{st.is_attached ? ' • Attached Bath' : ''})
+                      </option>
                     ))
                   ) : (
                     <option value="1">4 Sharing</option>
@@ -379,7 +430,7 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
                   value={addFormData.capacity}
                   onChange={(e) => setAddFormData({ ...addFormData, capacity: parseInt(e.target.value) })}
                   min="1"
-                  max="12"
+                  max="20"
                 />
               </div>
 
@@ -440,15 +491,17 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
               </div>
 
               <div className="form-group">
-                <label className="form-label">Sharing Type</label>
+                <label className="form-label">Sharing Type (Master Configuration)</label>
                 <select
                   className="form-select"
                   value={editFormData.sharing_type_id}
                   onChange={(e) => handleEditSharingTypeChange(e.target.value)}
                 >
-                  {sharingTypes && sharingTypes.length > 0 ? (
-                    sharingTypes.map((st) => (
-                      <option key={st.id} value={st.id}>{st.label}</option>
+                  {activeSharingTypes && activeSharingTypes.length > 0 ? (
+                    activeSharingTypes.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.label} ({st.bed_count} Beds{st.is_attached ? ' • Attached Bath' : ''})
+                      </option>
                     ))
                   ) : (
                     <option value="1">4 Sharing</option>
@@ -464,7 +517,7 @@ export default function RoomsPage({ rooms, hostels, sharingTypes, onAddRoom, onD
                   value={editFormData.capacity}
                   onChange={(e) => setEditFormData({ ...editFormData, capacity: parseInt(e.target.value) })}
                   min="1"
-                  max="12"
+                  max="20"
                 />
               </div>
 

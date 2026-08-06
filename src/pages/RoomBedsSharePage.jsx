@@ -32,9 +32,9 @@ export default function RoomBedsSharePage() {
       {/* Title */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800 }}>Hostels Opening & Closing Vacancy Analytics</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Opening Bed Capacity, Occupied Beds, and Closing Vacant Balance for each Hostel Block
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Beds & Sharing Types</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Bed capacities & vacant balances per block.
           </p>
         </div>
         <button className="btn btn-secondary" onClick={fetchAuditData}>

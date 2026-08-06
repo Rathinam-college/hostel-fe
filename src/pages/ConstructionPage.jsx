@@ -18,8 +18,8 @@ export default function ConstructionPage({ hostels }) {
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Hostel Construction & Expansion Tracker</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Track new hostel blocks and floor expansion phases coming online</p>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Expansion Tracker</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Upcoming hostel block expansions.</p>
         </div>
       </div>
 

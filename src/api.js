@@ -132,6 +132,19 @@ class ApiService {
     });
   }
 
+  async updateResident(id, residentData) {
+    return this.request(`/residents/${id}`, {
+      method: 'PUT',
+      body: residentData
+    });
+  }
+
+  async deleteResident(id) {
+    return this.request(`/residents/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   async checkIn(checkInData) {
     return this.request('/allocations/check-in', {
       method: 'POST',

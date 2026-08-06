@@ -252,9 +252,9 @@ export default function FloorsPage({ hostels, rooms, sharingTypes, onAddHostel, 
       {/* Page Title & Add New Hostel Button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Hostels, Floors & Rooms Infrastructure (Full CRUD)</h2>
-          <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>
-            Create, Edit, & Delete Hostels, Floors, and Rooms with live database sync
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Floors & Infrastructure</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Manage hostels, floors & room setups.
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAddHostelModal(true)}>

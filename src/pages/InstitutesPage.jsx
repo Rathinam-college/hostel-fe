@@ -19,8 +19,8 @@ export default function InstitutesPage({ institutes, onAddInstitute }) {
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Institutes Master Directory</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Manage affiliated colleges and academic institutions</p>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Academic Institutes</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Affiliated colleges & departments.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
           ➕ Add Institute

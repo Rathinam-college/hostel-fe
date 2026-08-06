@@ -14,6 +14,49 @@ import RequirementsPage from './pages/RequirementsPage';
 import ConstructionPage from './pages/ConstructionPage';
 import UsersPage from './pages/UsersPage';
 import ReportsPage from './pages/ReportsPage';
+import VacancyAuditReportPage from './pages/VacancyAuditReportPage';
+import DailyHeadcountReportPage from './pages/DailyHeadcountReportPage';
+import MonthlyOccupancyReportPage from './pages/MonthlyOccupancyReportPage';
+import NewEntryPage from './pages/NewEntryPage';
+import BedAllocationPage from './pages/BedAllocationPage';
+import SharingTypesPage from './pages/SharingTypesPage';
+
+// Nav Section Configuration
+const dailyEntryItems = [
+  { id: 'new-entry', label: 'Students & Staff New Entry', icon: '📝' },
+  { id: 'bed-allocation', label: 'Bed & Room Allocation', icon: '🛏️' },
+];
+
+const masterDataItems = [
+  { id: 'hostels', label: 'Hostels', icon: '🏢' },
+  { id: 'floors', label: 'Floors', icon: '📶' },
+  { id: 'rooms', label: 'Rooms', icon: '🚪' },
+  { id: 'sharing-types', label: 'Room Sharing Types', icon: '🛏️' },
+  { id: 'residents', label: 'Students Directory', icon: '👥' },
+  { id: 'institutes', label: 'Institutes', icon: '🎓' },
+];
+
+const reportsItems = [
+  { id: 'reports-vacancy', label: 'Opening & Closing Vacancy Audit', icon: '🚪' },
+  { id: 'reports-daily', label: 'Daily Headcount & Check-Ins', icon: '📅' },
+  { id: 'reports-monthly', label: 'Monthly Occupancy Report', icon: '📊' },
+  { id: 'beds-share', label: 'Beds & Sharing', icon: '🛏️' },
+];
+
+const settingsItems = [
+  { id: 'renewals', label: 'Renewals Board', icon: '📋' },
+  { id: 'requirements', label: 'Demand Forecast', icon: '🔮' },
+  { id: 'construction', label: 'Expansion Tracker', icon: '🏗️' },
+  { id: 'users', label: 'Users & Roles', icon: '⚙️' },
+];
+
+const getSectionForTab = (tabId) => {
+  if (dailyEntryItems.some((item) => item.id === tabId)) return 'dailyEntry';
+  if (reportsItems.some((item) => item.id === tabId) || tabId === 'reports') return 'reports';
+  if (masterDataItems.some((item) => item.id === tabId)) return 'masterData';
+  if (settingsItems.some((item) => item.id === tabId)) return 'settings';
+  return 'dailyEntry';
+};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -32,8 +75,9 @@ export default function App() {
     const lastSegment = segments[segments.length - 1] || 'dashboard';
 
     const validTabs = [
-      'dashboard', 'hostels', 'floors', 'rooms', 'beds-share',
-      'residents', 'institutes', 'reports', 'renewals', 'requirements', 'construction', 'users'
+      'dashboard', 'new-entry', 'bed-allocation', 'hostels', 'floors', 'rooms', 'beds-share',
+      'sharing-types', 'residents', 'institutes', 'reports', 'reports-vacancy', 'reports-daily', 'reports-monthly',
+      'renewals', 'requirements', 'construction', 'users'
     ];
 
     return validTabs.includes(lastSegment) ? lastSegment : 'dashboard';
@@ -43,8 +87,27 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
 
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('hostel_portal_theme') || 'blue';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('hostel_portal_theme', theme);
+  }, [theme]);
+
+  const [openSection, setOpenSection] = useState(() => getSectionForTab(getTabFromUrl()));
+
+  const toggleSection = (sectionName) => {
+    setOpenSection((prev) => (prev === sectionName ? null : sectionName));
+  };
+
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
+    const sec = getSectionForTab(tabId);
+    if (sec) {
+      setOpenSection(sec);
+    }
     const basePath = window.location.pathname.startsWith('/hostel') ? '/hostel' : '';
     const newUrl = `${basePath}/${tabId}`;
     if (window.location.pathname !== newUrl) {
@@ -54,14 +117,18 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setActiveTab(getTabFromUrl());
+      const currentTab = getTabFromUrl();
+      setActiveTab(currentTab);
+      const sec = getSectionForTab(currentTab);
+      if (sec) {
+        setOpenSection(sec);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Core Data States
-  const [isMasterDataOpen, setIsMasterDataOpen] = useState(true);
+  const [preselectedResidentForAllocation, setPreselectedResidentForAllocation] = useState(null);
   const [stats, setStats] = useState(null);
   const [hostels, setHostels] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -247,9 +314,63 @@ export default function App() {
       .then((data) => {
         if (data.status === 'success') {
           fetchResidents();
-          showNotify('Resident student registered');
+          showNotify('Resident student/staff registered');
         }
       });
+  };
+
+  const handleUpdateResident = (id, resData) => {
+    fetch(`/api/residents/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(resData)
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 'success') {
+          fetchResidents();
+          showNotify('Resident record updated');
+        } else {
+          alert(data.message || 'Update failed');
+        }
+      });
+  };
+
+  const handleDeleteResident = (id) => {
+    fetch(`/api/residents/${id}`, { method: 'DELETE' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 'success') {
+          fetchResidents();
+          showNotify('Resident record deleted');
+        }
+      });
+  };
+
+  const handlePromoteYear = (promoteData, onSuccess) => {
+    fetch('/api/residents/promote-year', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(promoteData)
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 'success') {
+          fetchResidents();
+          showNotify(data.message || 'Student academic years updated successfully!');
+          if (onSuccess) onSuccess();
+        } else {
+          alert(data.message || 'Batch promotion failed');
+        }
+      })
+      .catch((err) => {
+        alert('Failed to execute batch year promotion: ' + err.message);
+      });
+  };
+
+  const handleNavigateToAllocation = (resident) => {
+    setPreselectedResidentForAllocation(resident);
+    handleTabChange('bed-allocation');
   };
 
   const handleCheckIn = (allocData) => {
@@ -356,118 +477,303 @@ export default function App() {
     );
   }
 
-  // Master Data Items List
-  const masterDataItems = [
-    { id: 'hostels', label: 'Hostels', icon: '🏢' },
-    { id: 'floors', label: 'Floors', icon: '📶' },
-    { id: 'rooms', label: 'Rooms', icon: '🚪' },
-    { id: 'beds-share', label: 'Beds & Sharing', icon: '🛏️' },
-    { id: 'residents', label: 'Students', icon: '👥' },
-    { id: 'institutes', label: 'Institutes', icon: '🎓' },
-  ];
-
-  const topNavItems = [
-    { id: 'dashboard', label: 'Dashboard Overview', icon: '📊' },
-    { id: 'reports', label: 'Audit Reports', icon: '📈' },
-    { id: 'renewals', label: 'Renewals Board', icon: '📋' },
-    { id: 'requirements', label: 'Demand Forecast', icon: '🔮' },
-    { id: 'construction', label: 'Expansion Tracker', icon: '🏗️' },
-    { id: 'users', label: 'Users & Roles', icon: '⚙️' },
-  ];
-
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard Overview' },
+    ...dailyEntryItems,
     ...masterDataItems,
-    { id: 'reports', label: 'Audit Reports' },
-    { id: 'renewals', label: 'Renewals Board' },
-    { id: 'requirements', label: 'Demand Forecast' },
-    { id: 'construction', label: 'Expansion Tracker' },
-    { id: 'users', label: 'Users & Roles' },
+    ...reportsItems,
+    { id: 'reports', label: 'Audit Reports & Analytics Hub' },
+    ...settingsItems,
   ];
 
+  const isDailyEntryActive = dailyEntryItems.some((item) => item.id === activeTab);
   const isMasterDataActive = masterDataItems.some((item) => item.id === activeTab);
+  const isReportsActive = reportsItems.some((item) => item.id === activeTab) || activeTab === 'reports';
+  const isSettingsActive = settingsItems.some((item) => item.id === activeTab);
 
   return (
     <div className="page-container">
-      {/* Light Theme Navigation Sidebar */}
+      {/* HostelGuard Navigation Sidebar */}
       <aside className="sidebar">
         <div className="brand-container">
-          <div className="brand-icon">🏰</div>
+          <div className="brand-icon">
+            🛡️
+          </div>
           <div>
-            <div className="brand-title">Hostel Portal</div>
-            <div className="brand-subtitle">Management Suite</div>
+            <div className="brand-title">
+              HostelGuard
+            </div>
+            <span className="brand-tag">Enterprise</span>
           </div>
         </div>
 
         <nav className="nav-menu">
-          {/* 1. Dashboard Overview */}
+          {/* Overview */}
           <a
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleTabChange('dashboard')}
           >
             <span className="nav-icon">📊</span>
-            <span>Dashboard Overview</span>
+            <span>Overview</span>
           </a>
 
-          {/* 2. Master Data Collapsible Dropdown */}
-          <div className="nav-dropdown">
+          {/* DAILY OPERATIONS / DAILY ENTRY FOLDER */}
+          <div className="nav-folder">
             <div
-              className={`nav-dropdown-header ${isMasterDataActive ? 'active' : ''}`}
-              onClick={() => setIsMasterDataOpen(!isMasterDataOpen)}
+              className={`nav-folder-header ${isDailyEntryActive ? 'active-folder' : ''}`}
+              onClick={() => toggleSection('dailyEntry')}
+              title="Click to open or close Daily Entry menu"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span className="nav-icon">📂</span>
-                <span>Master Data</span>
+              <div className="nav-folder-title">
+                <span className="folder-icon-badge folder-badge-blue">⚡</span>
+                <span>Daily Entry</span>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {isMasterDataOpen ? '▲' : '▼'}
-              </span>
+              <svg className={`folder-chevron ${openSection === 'dailyEntry' ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
             </div>
 
-            {isMasterDataOpen && (
-              <div className="nav-submenu">
-                {masterDataItems.map((item) => (
-                  <a
-                    key={item.id}
-                    className={`nav-subitem ${activeTab === item.id ? 'active' : ''}`}
-                    onClick={() => handleTabChange(item.id)}
-                  >
-                    <span className="nav-icon" style={{ fontSize: '1.05rem' }}>{item.icon}</span>
-                    <span>{item.label}</span>
-                  </a>
-                ))}
+            {openSection === 'dailyEntry' && (
+              <div className="nav-folder-content">
+                <a
+                  className={`nav-sub-item ${activeTab === 'new-entry' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('new-entry')}
+                >
+                  <span className="nav-icon" style={{ fontSize: '1.15rem', fontWeight: 800 }}>+</span>
+                  <span>New Entry</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'bed-allocation' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('bed-allocation')}
+                >
+                  <span className="nav-icon">🛏️</span>
+                  <span>Bed Allocation</span>
+                </a>
               </div>
             )}
           </div>
 
-          {/* 3. Remaining Top-Level Navigation Items */}
-          {topNavItems.slice(1).map((item) => (
-            <a
-              key={item.id}
-              className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => handleTabChange(item.id)}
+          {/* INTELLIGENCE FOLDER */}
+          <div className="nav-folder">
+            <div
+              className={`nav-folder-header ${isReportsActive ? 'active-folder' : ''}`}
+              onClick={() => toggleSection('reports')}
+              title="Click to open or close Intelligence Reports menu"
             >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </a>
-          ))}
+              <div className="nav-folder-title">
+                <span className="folder-icon-badge folder-badge-purple">📊</span>
+                <span>Reports & Audit</span>
+              </div>
+              <svg className={`folder-chevron ${openSection === 'reports' ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+
+            {openSection === 'reports' && (
+              <div className="nav-folder-content">
+                <a
+                  className={`nav-sub-item ${activeTab === 'reports-vacancy' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('reports-vacancy')}
+                >
+                  <span className="nav-icon">📋</span>
+                  <span>Vacancy Audit</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'reports-daily' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('reports-daily')}
+                >
+                  <span className="nav-icon">📅</span>
+                  <span>Daily Headcount</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'reports-monthly' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('reports-monthly')}
+                >
+                  <span className="nav-icon">📈</span>
+                  <span>Occupancy & Utilization</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'beds-share' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('beds-share')}
+                >
+                  <span className="nav-icon">🛏️</span>
+                  <span>Beds & Sharing</span>
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* MANAGEMENT FOLDER */}
+          <div className="nav-folder">
+            <div
+              className={`nav-folder-header ${isMasterDataActive ? 'active-folder' : ''}`}
+              onClick={() => toggleSection('masterData')}
+              title="Click to open or close Management Directory menu"
+            >
+              <div className="nav-folder-title">
+                <span className="folder-icon-badge folder-badge-emerald">🏢</span>
+                <span>Master Management</span>
+              </div>
+              <svg className={`folder-chevron ${openSection === 'masterData' ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+
+            {openSection === 'masterData' && (
+              <div className="nav-folder-content">
+                <a
+                  className={`nav-sub-item ${activeTab === 'residents' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('residents')}
+                >
+                  <span className="nav-icon">👥</span>
+                  <span>Students Directory</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'hostels' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('hostels')}
+                >
+                  <span className="nav-icon">🏢</span>
+                  <span>Hostels & Blocks</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'floors' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('floors')}
+                >
+                  <span className="nav-icon">📶</span>
+                  <span>Floors</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'rooms' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('rooms')}
+                >
+                  <span className="nav-icon">🚪</span>
+                  <span>Rooms</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'sharing-types' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('sharing-types')}
+                >
+                  <span className="nav-icon">🛏️</span>
+                  <span>Room Sharing Types</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'institutes' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('institutes')}
+                >
+                  <span className="nav-icon">🎓</span>
+                  <span>Institutes</span>
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* SYSTEM FOLDER */}
+          <div className="nav-folder">
+            <div
+              className={`nav-folder-header ${isSettingsActive ? 'active-folder' : ''}`}
+              onClick={() => toggleSection('settings')}
+              title="Click to open or close System Control menu"
+            >
+              <div className="nav-folder-title">
+                <span className="folder-icon-badge folder-badge-amber">⚙️</span>
+                <span>System Tools</span>
+              </div>
+              <svg className={`folder-chevron ${openSection === 'settings' ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+
+            {openSection === 'settings' && (
+              <div className="nav-folder-content">
+                <a
+                  className={`nav-sub-item ${activeTab === 'renewals' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('renewals')}
+                >
+                  <span className="nav-icon">📋</span>
+                  <span>Renewals Board</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'requirements' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('requirements')}
+                >
+                  <span className="nav-icon">🔮</span>
+                  <span>Demand Forecast</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'construction' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('construction')}
+                >
+                  <span className="nav-icon">🏗️</span>
+                  <span>Expansion Tracker</span>
+                </a>
+                <a
+                  className={`nav-sub-item ${activeTab === 'users' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('users')}
+                >
+                  <span className="nav-icon">⚙️</span>
+                  <span>Roles & Users</span>
+                </a>
+              </div>
+            )}
+          </div>
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="avatar">
-              {currentUser.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'U'}
+          {/* Theme Switcher Segmented Control */}
+          <div className="theme-switcher-bar">
+            <button
+              type="button"
+              className={`theme-pill-btn ${theme === 'blue' ? 'active' : ''}`}
+              onClick={() => setTheme('blue')}
+              title="Blue Theme"
+            >
+              <span className="theme-dot theme-dot-blue"></span>
+              <span>Blue</span>
+            </button>
+            <button
+              type="button"
+              className={`theme-pill-btn ${theme === 'dark' ? 'active' : ''}`}
+              onClick={() => setTheme('dark')}
+              title="Dark Mode"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+              <span>Dark</span>
+            </button>
+            <button
+              type="button"
+              className={`theme-pill-btn ${theme === 'emerald' ? 'active' : ''}`}
+              onClick={() => setTheme('emerald')}
+              title="Mint Theme"
+            >
+              <span className="theme-dot theme-dot-mint"></span>
+              <span>Mint</span>
+            </button>
+          </div>
+
+          {/* User Profile Card */}
+          <div className="user-profile-card">
+            <div className="avatar-wrapper">
+              <div className="avatar">
+                {currentUser.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'A'}
+              </div>
+              <span className="status-dot" title="Active Session"></span>
             </div>
             <div className="user-info">
               <div className="user-name">{currentUser.full_name}</div>
-              <div className="user-role">{currentUser.role}</div>
+              <span className="user-role-badge">{currentUser.role || 'ADMIN'}</span>
             </div>
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn-logout-modern"
               onClick={handleLogout}
-              title="Log Out"
+              title="Sign Out"
             >
-              🚪
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
             </button>
           </div>
         </div>
@@ -475,20 +781,7 @@ export default function App() {
 
       {/* Main Wrapper */}
       <main className="main-wrapper">
-        {/* Top Header Bar */}
-        <header className="top-header">
-          <div className="header-title-group">
-            <h1>{allNavItems.find((n) => n.id === activeTab)?.label || 'Dashboard Overview'}</h1>
-            <p>Rathinam Educational Campuses • Hostel Operations Portal</p>
-          </div>
 
-          <div className="header-actions">
-            <button className="btn btn-secondary btn-sm" onClick={handleInitDbSchema}>
-              ⚡ Reset/Seed DB (pgAdmin)
-            </button>
-            <span className="badge badge-success">PostgreSQL Online</span>
-          </div>
-        </header>
 
         {/* Global Notification Banner */}
         {notification && (
@@ -509,7 +802,46 @@ export default function App() {
         {/* Main Content Area - Render Active Page File Component */}
         <div className="main-content">
           {activeTab === 'dashboard' && (
-            <DashboardPage stats={stats} loading={loading} refreshStats={fetchDashboardStats} />
+            <DashboardPage stats={stats} loading={loading} refreshStats={fetchDashboardStats} onNavigate={handleTabChange} />
+          )}
+
+          {activeTab === 'new-entry' && (
+            <NewEntryPage
+              residents={residents}
+              institutes={institutes}
+              hostels={hostels}
+              rooms={rooms}
+              onRegisterResident={handleRegisterResident}
+              onUpdateResident={handleUpdateResident}
+              onDeleteResident={handleDeleteResident}
+              onNavigateToAllocation={handleNavigateToAllocation}
+              onPromoteYear={handlePromoteYear}
+            />
+          )}
+
+          {activeTab === 'bed-allocation' && (
+            <BedAllocationPage
+              residents={residents}
+              hostels={hostels}
+              rooms={rooms}
+              preselectedResident={preselectedResidentForAllocation}
+              onCheckIn={handleCheckIn}
+              onCheckOut={(outData) => {
+                fetch('/api/allocations/check-out', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(outData)
+                })
+                  .then((res) => res.json())
+                  .then((data) => {
+                    if (data.status === 'success') {
+                      fetchRooms();
+                      fetchDashboardStats();
+                      showNotify('Check-out completed!');
+                    }
+                  });
+              }}
+            />
           )}
 
           {activeTab === 'hostels' && (
@@ -524,24 +856,36 @@ export default function App() {
             <RoomsPage rooms={rooms} hostels={hostels} sharingTypes={sharingTypes} onAddRoom={handleAddRoom} onDeleteRoom={handleDeleteRoom} />
           )}
 
+          {activeTab === 'sharing-types' && (
+            <SharingTypesPage />
+          )}
+
           {activeTab === 'beds-share' && (
             <RoomBedsSharePage hostels={hostels} rooms={rooms} />
           )}
 
           {activeTab === 'residents' && (
-            <ResidentsPage residents={residents} institutes={institutes} hostels={hostels} rooms={rooms} onRegisterResident={handleRegisterResident} onCheckIn={handleCheckIn} />
+            <ResidentsPage residents={residents} institutes={institutes} hostels={hostels} rooms={rooms} onRegisterResident={handleRegisterResident} onCheckIn={handleCheckIn} onPromoteYear={handlePromoteYear} />
           )}
 
           {activeTab === 'institutes' && (
             <InstitutesPage institutes={institutes} onAddInstitute={handleAddInstitute} />
           )}
 
-          {activeTab === 'reports' && (
-            <ReportsPage />
+          {(activeTab === 'reports' || activeTab === 'reports-vacancy') && (
+            <VacancyAuditReportPage />
+          )}
+
+          {activeTab === 'reports-daily' && (
+            <DailyHeadcountReportPage />
+          )}
+
+          {activeTab === 'reports-monthly' && (
+            <MonthlyOccupancyReportPage />
           )}
 
           {activeTab === 'renewals' && (
-            <RenewalsPage />
+            <RenewalsPage onPromoteYear={handlePromoteYear} />
           )}
 
           {activeTab === 'requirements' && (

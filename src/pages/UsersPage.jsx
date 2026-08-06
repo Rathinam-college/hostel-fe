@@ -21,8 +21,8 @@ export default function UsersPage({ users, hostels, onAddUser }) {
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Staff & Warden User Accounts</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Management users access control & role permissions</p>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Users & Roles</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Staff & warden user accounts.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
           ➕ Add User Account
